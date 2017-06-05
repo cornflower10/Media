@@ -44,12 +44,14 @@ public class SendView extends RelativeLayout {
         setVisibility(GONE);
     }
 
+    private  int px = Utils.getInstance(getContext()).dp2px(100);
+
     public void startAnim(){
         setVisibility(VISIBLE);
         AnimatorSet set = new AnimatorSet();
         set.playTogether(
-                ObjectAnimator.ofFloat(backLayout,"translationX",0,-360),
-                ObjectAnimator.ofFloat(selectLayout,"translationX",0,360)
+                ObjectAnimator.ofFloat(backLayout,"translationX",0,-px),
+                ObjectAnimator.ofFloat(selectLayout,"translationX",0,px)
         );
         set.setDuration(250).start();
     }
@@ -57,8 +59,8 @@ public class SendView extends RelativeLayout {
     public void stopAnim(){
         AnimatorSet set = new AnimatorSet();
         set.playTogether(
-                ObjectAnimator.ofFloat(backLayout,"translationX",-360,0),
-                ObjectAnimator.ofFloat(selectLayout,"translationX",360,0)
+                ObjectAnimator.ofFloat(backLayout,"translationX",-px,0),
+                ObjectAnimator.ofFloat(selectLayout,"translationX",px,0)
         );
         set.setDuration(250).start();
         setVisibility(GONE);

@@ -2,6 +2,7 @@ package com.werb.mediautilsdemo.activity;
 
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -11,9 +12,6 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
-import android.view.animation.Animation;
-import android.view.animation.AnimationSet;
-import android.view.animation.AnimationUtils;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -23,6 +21,7 @@ import com.werb.mediautilsdemo.R;
 import com.werb.mediautilsdemo.widget.SendView;
 import com.werb.mediautilsdemo.widget.VideoProgressBar;
 
+import java.io.File;
 import java.util.UUID;
 
 /**
@@ -40,15 +39,31 @@ public class VideoRecorderActivity extends AppCompatActivity {
     private SendView send;
     private RelativeLayout recordLayout;
 
+    private boolean isSave;
+    private SurfaceView surfaceView;
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_video);
-        SurfaceView surfaceView = (SurfaceView) findViewById(R.id.main_surface_view);
+        surfaceView = (SurfaceView) findViewById(R.id.main_surface_view);
+
+
+
         // setting
         mediaUtils = new MediaUtils(this);
         mediaUtils.setRecorderType(MediaUtils.MEDIA_VIDEO);
         mediaUtils.setTargetDir(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES));
+        File file = new File(getCacheDir()+"/video_cache/");
+        if(!file.exists()){
+            try {
+                file.mkdir();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+//        mediaUtils.setTargetDir(file);
+
         mediaUtils.setTargetName(UUID.randomUUID() + ".mp4");
         mediaUtils.setSurfaceView(surfaceView);
         // btn
@@ -60,6 +75,7 @@ public class VideoRecorderActivity extends AppCompatActivity {
         findViewById(R.id.btn_close).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+
                 finish();
             }
         });
@@ -78,6 +94,8 @@ public class VideoRecorderActivity extends AppCompatActivity {
         progressBar.setCancel(true);
     }
 
+    private boolean isRecord = false;
+
     View.OnTouchListener btnTouch = new View.OnTouchListener() {
         @Override
         public boolean onTouch(View v, MotionEvent event) {
@@ -89,33 +107,60 @@ public class VideoRecorderActivity extends AppCompatActivity {
                 case R.id.main_press_control: {
                     switch (action) {
                         case MotionEvent.ACTION_DOWN:
-                            mediaUtils.record();
-                            startView();
-                            ret = true;
+                            if(!isRecord){
+                                mediaUtils.record();
+                                startView();
+                                ret = true;
+                                isRecord = true;
+                            }else {
+                                if (!isCancel) {
+                                    if (mProgress == 0) {
+                                        stopView(false);
+                                        break;
+                                    }
+                                    if (mProgress < 10) {
+                                        //时间太短不保存
+                                        mediaUtils.stopRecordUnSave();
+                                        Toast.makeText(VideoRecorderActivity.this, "时间太短", Toast.LENGTH_SHORT).show();
+                                        stopView(false);
+                                        break;
+                                    }
+                                    //停止录制
+                                    mediaUtils.stopRecordSave();
+                                    stopView(true);
+                                } else {
+                                    //现在是取消状态,不保存
+                                    mediaUtils.stopRecordUnSave();
+                                    Toast.makeText(VideoRecorderActivity.this, "取消保存", Toast.LENGTH_SHORT).show();
+                                    stopView(false);
+                                }
+                                ret = false;
+                            }
+
                             break;
                         case MotionEvent.ACTION_UP:
-                            if (!isCancel) {
-                                if (mProgress == 0) {
-                                    stopView(false);
-                                    break;
-                                }
-                                if (mProgress < 10) {
-                                    //时间太短不保存
-                                    mediaUtils.stopRecordUnSave();
-                                    Toast.makeText(VideoRecorderActivity.this, "时间太短", Toast.LENGTH_SHORT).show();
-                                    stopView(false);
-                                    break;
-                                }
-                                //停止录制
-                                mediaUtils.stopRecordSave();
-                                stopView(true);
-                            } else {
-                                //现在是取消状态,不保存
-                                mediaUtils.stopRecordUnSave();
-                                Toast.makeText(VideoRecorderActivity.this, "取消保存", Toast.LENGTH_SHORT).show();
-                                stopView(false);
-                            }
-                            ret = false;
+//                            if (!isCancel) {
+//                                if (mProgress == 0) {
+//                                    stopView(false);
+//                                    break;
+//                                }
+//                                if (mProgress < 10) {
+//                                    //时间太短不保存
+//                                    mediaUtils.stopRecordUnSave();
+//                                    Toast.makeText(VideoRecorderActivity.this, "时间太短", Toast.LENGTH_SHORT).show();
+//                                    stopView(false);
+//                                    break;
+//                                }
+//                                //停止录制
+//                                mediaUtils.stopRecordSave();
+//                                stopView(true);
+//                            } else {
+//                                //现在是取消状态,不保存
+//                                mediaUtils.stopRecordUnSave();
+//                                Toast.makeText(VideoRecorderActivity.this, "取消保存", Toast.LENGTH_SHORT).show();
+//                                stopView(false);
+//                            }
+//                            ret = false;
                             break;
                         case MotionEvent.ACTION_MOVE:
                             float currentY = event.getY();
@@ -208,17 +253,33 @@ public class VideoRecorderActivity extends AppCompatActivity {
             send.stopAnim();
             recordLayout.setVisibility(View.VISIBLE);
             mediaUtils.deleteTargetFile();
+            isRecord = false;
         }
     };
 
     private View.OnClickListener selectClick = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
+            isSave = true;
             String path = mediaUtils.getTargetFilePath();
             Toast.makeText(VideoRecorderActivity.this, "文件以保存至：" + path, Toast.LENGTH_SHORT).show();
+            SharedPreferences sharedPreferences =getSharedPreferences("test",MODE_PRIVATE);
+          SharedPreferences.Editor editor = sharedPreferences.edit();
+            editor.  putString("test",path);
+            editor.commit();
             send.stopAnim();
             recordLayout.setVisibility(View.VISIBLE);
+            finish();
         }
     };
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if(!isSave){
+            mediaUtils.deleteTargetFile();
+        }
+        mediaUtils.surfaceDestroyed(surfaceView.getHolder());
+        mediaUtils = null;
+    }
 }

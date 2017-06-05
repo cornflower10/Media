@@ -151,6 +151,8 @@ public class MediaUtils implements SurfaceHolder.Callback {
                 mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
             }
             targetFile = new File(targetDir, targetName);
+            if(!(targetFile.getParentFile().exists()))
+                targetFile.getParentFile().mkdir();
             mMediaRecorder.setOutputFile(targetFile.getPath());
 
         } catch (Exception e) {
